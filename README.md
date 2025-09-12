@@ -60,10 +60,28 @@ Existing incident management tools like PagerDuty are:
 git clone https://github.com/<your-org>/devops-incident-center.git
 cd devops-incident-center
 
-# Run backend
-cd backend
-cp .env.example .env
-uvicorn app.main:app --reload
+# Setup virtual environment
+python -m venv .venv
+.venv\Scripts\Activate.ps1  # Windows
+# source .venv/bin/activate  # Linux/Mac
+
+# Install dependencies
+cd services/api
+pip install -r requirements.txt
+
+# Setup PostgreSQL database
+# 1. Install PostgreSQL
+# 2. Create database: incidents_db
+# 3. Update .env file with your database credentials
+
+# Run database migrations
+alembic upgrade head
+
+# Start the API
+uvicorn main:app --reload
+
+# API will be available at http://127.0.0.1:8000
+# API docs at http://127.0.0.1:8000/docs
 
 # Run frontend
 cd ../frontend
@@ -97,17 +115,15 @@ sequenceDiagram
 devops-incident-center/
 ├── services/
 │   ├── api/              # FastAPI backend
-│   ├── web/              # React frontend
-│   └── notifications/    # Slack/Teams handler
-├── infrastructure/
-│   ├── terraform/        # AKS + Azure infra
-│   ├── helm/             # Helm charts
-│   └── monitoring/       # Prometheus rules, Grafana dashboards
+│   │   ├── db/           # Database models and migrations
+│   │   ├── routes/       # API endpoints
+│   │   ├── main.py       # FastAPI application
+│   │   └── requirements.txt
+│   ├── web/              # React frontend (future)
+│   └── notifications/    # Slack/Teams handler (future)
+├── infrastructure/       # (future)
 ├── docs/
-│   ├── architecture/
-│   ├── runbooks/
-│   └── api/              # OpenAPI specs
-├── scripts/              # Dev helpers, migrations
+├── scripts/             # (future)
 └── README.md
 ```
 ---
