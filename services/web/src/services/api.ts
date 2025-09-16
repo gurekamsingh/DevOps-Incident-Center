@@ -1,12 +1,14 @@
 // API service for fetching incidents from the backend
-import { Incident } from '../types/incident';
+import type { Incident } from '../types/incident';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
 export class ApiError extends Error {
-  constructor(message: string, public status?: number) {
-    super(message);
-    this.name = 'ApiError';
+    status?: number;
+    constructor(message: string, status?: number) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
   }
 }
 
