@@ -11,7 +11,7 @@ export interface Incident {
   title: string;
   service: string;
   environment: string;
-  severity: 'critical' | 'warning' | 'info' | 'low';
+  severity: 'critical' | 'major' | 'warning' | 'info' | 'low';
   status: 'open' | 'acknowledged' | 'resolved';
   assignee?: string;
   source_alert?: SourceAlert;
