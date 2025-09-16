@@ -1,9 +1,10 @@
 # services/api/schemas/incident.py
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
+from uuid import UUID
 
 class IncidentStatus(str, Enum):
     """Valid incident status values."""
@@ -22,16 +23,17 @@ class IncidentStatusUpdate(BaseModel):
     """Schema for updating incident status."""
     status: IncidentStatus = Field(..., description="New status for the incident")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "status": "acknowledged"
             }
         }
+    )
 
 class IncidentResponse(BaseModel):
     """Schema for incident response."""
-    id: str
+    id: UUID
     title: str
     service: str
     environment: str
@@ -43,9 +45,9 @@ class IncidentResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-        schema_extra = {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": "123e4567-e89b-12d3-a456-426614174000",
                 "title": "High CPU usage on web server",
@@ -63,3 +65,4 @@ class IncidentResponse(BaseModel):
                 "updated_at": "2024-01-15T10:35:00Z"
             }
         }
+    )
