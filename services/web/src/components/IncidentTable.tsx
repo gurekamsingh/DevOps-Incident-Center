@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Incident, IncidentFilters, ApiResponse } from '../types/incident';
+import type { Incident, IncidentFilters, ApiResponse } from '../types/incident';
 import { incidentApi, ApiError } from '../services/api';
 
 interface IncidentTableProps {
