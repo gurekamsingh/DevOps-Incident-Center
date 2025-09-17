@@ -125,33 +125,67 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
     }
   };
 
-  const getSeverityBadgeColor = (severity: string): string => {
+  const getSeverityStyle = (severity: string) => {
+    const baseClasses = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full border';
+    
     switch (severity.toLowerCase()) {
       case 'critical':
-        return 'bg-critical text-white border border-red-300';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#dc2626', color: 'white', borderColor: '#fca5a5' }
+        };
       case 'major':
-        return 'bg-orange-100 text-orange-800 border border-orange-200';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#ea580c', color: 'white', borderColor: '#fed7aa' }
+        };
       case 'warning':
-        return 'bg-warning text-white border border-amber-300';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#d97706', color: 'white', borderColor: '#fde68a' }
+        };
       case 'info':
-        return 'bg-info text-white border border-blue-300';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#2563eb', color: 'white', borderColor: '#bfdbfe' }
+        };
       case 'low':
-        return 'bg-success text-white border border-green-300';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#16a34a', color: 'white', borderColor: '#bbf7d0' }
+        };
       default:
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
+        return {
+          className: `${baseClasses} bg-gray-100 text-gray-800 border-gray-200`,
+          style: {}
+        };
     }
   };
 
-  const getStatusBadgeColor = (status: string): string => {
+  const getStatusStyle = (status: string) => {
+    const baseClasses = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full border';
+    
     switch (status.toLowerCase()) {
       case 'open':
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
+        return {
+          className: `${baseClasses} bg-gray-100 text-gray-800 border-gray-200`,
+          style: {}
+        };
       case 'acknowledged':
-        return 'bg-warning text-white border border-amber-300';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#d97706', color: 'white', borderColor: '#fde68a' }
+        };
       case 'resolved':
-        return 'bg-success text-white border border-green-300';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#16a34a', color: 'white', borderColor: '#bbf7d0' }
+        };
       default:
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
+        return {
+          className: `${baseClasses} bg-gray-100 text-gray-800 border-gray-200`,
+          style: {}
+        };
     }
   };
 
@@ -350,27 +384,35 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
                         {incident.environment}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSeverityBadgeColor(incident.severity)}`}>
-                          {incident.severity}
-                        </span>
+                        {(() => {
+                          const severityStyle = getSeverityStyle(incident.severity);
+                          return (
+                            <span className={severityStyle.className} style={severityStyle.style}>
+                              {incident.severity}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(incident.status)}`}>
-                            {incident.status}
-                          </span>
-                          {incident.status !== 'resolved' && (
-                            <select
-                              value={incident.status}
-                              onChange={(e) => updateIncidentStatus(incident.id, e.target.value as 'open' | 'acknowledged' | 'resolved')}
-                              disabled={updatingStatus.has(incident.id)}
-                              className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-                            >
-                              <option value="open">Open</option>
-                              <option value="acknowledged">Acknowledged</option>
-                              <option value="resolved">Resolved</option>
-                            </select>
-                          )}
+                          {(() => {
+                            const statusStyle = getStatusStyle(incident.status);
+                            return (
+                              <span className={statusStyle.className} style={statusStyle.style}>
+                                {incident.status}
+                              </span>
+                            );
+                          })()}
+                          <select
+                            value={incident.status}
+                            onChange={(e) => updateIncidentStatus(incident.id, e.target.value as 'open' | 'acknowledged' | 'resolved')}
+                            disabled={updatingStatus.has(incident.id)}
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                          >
+                            <option value="open">Open</option>
+                            <option value="acknowledged">Acknowledged</option>
+                            <option value="resolved">Resolved</option>
+                          </select>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
