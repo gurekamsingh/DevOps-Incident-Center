@@ -47,5 +47,29 @@ export const incidentApi = {
       }
       throw new ApiError('Network error: Unable to connect to the API');
     }
+  },
+
+  async updateIncidentStatus(id: string, status: 'open' | 'acknowledged' | 'resolved'): Promise<Incident> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/incidents/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+      
+      if (!response.ok) {
+        throw new ApiError(`Failed to update incident status: ${response.statusText}`, response.status);
+      }
+      
+      const incident = await response.json();
+      return incident;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Network error: Unable to connect to the API');
+    }
   }
 };

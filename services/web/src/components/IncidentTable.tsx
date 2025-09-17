@@ -13,6 +13,8 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
   const [error, setError] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<IncidentFilters>({});
+  const [updatingStatus, setUpdatingStatus] = useState<Set<string>>(new Set());
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Fetch incidents on component mount
   useEffect(() => {
@@ -23,6 +25,14 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
   useEffect(() => {
     applyFilters();
   }, [incidents, filters]);
+
+  // Auto-hide notifications after 3 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const fetchIncidents = async () => {
     try {
@@ -54,6 +64,40 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
     setFilteredIncidents(filtered);
   };
 
+  const clearFilters = () => {
+    setFilters({});
+  };
+
+  const updateIncidentStatus = async (incidentId: string, newStatus: 'open' | 'acknowledged' | 'resolved') => {
+    try {
+      setUpdatingStatus(prev => new Set(prev).add(incidentId));
+      
+      // Optimistic update
+      setIncidents(prev => prev.map(incident => 
+        incident.id === incidentId 
+          ? { ...incident, status: newStatus, updated_at: new Date().toISOString() }
+          : incident
+      ));
+
+      await incidentApi.updateIncidentStatus(incidentId, newStatus);
+      setNotification({ message: `Status updated to ${newStatus}`, type: 'success' });
+      
+      // Refresh to get the actual updated_at from server
+      await fetchIncidents();
+    } catch (err) {
+      // Revert optimistic update on error
+      await fetchIncidents();
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to update status';
+      setNotification({ message: errorMessage, type: 'error' });
+    } finally {
+      setUpdatingStatus(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(incidentId);
+        return newSet;
+      });
+    }
+  };
+
   const toggleRowExpansion = (incidentId: string) => {
     const newExpandedRows = new Set(expandedRows);
     if (newExpandedRows.has(incidentId)) {
@@ -68,38 +112,80 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
     switch (severity.toLowerCase()) {
       case 'critical':
         return 'bg-red-50 border-l-4 border-red-500 text-red-900';
+      case 'major':
+        return 'bg-orange-50 border-l-4 border-orange-500 text-orange-900';
       case 'warning':
         return 'bg-yellow-50 border-l-4 border-yellow-500 text-yellow-900';
       case 'info':
         return 'bg-blue-50 border-l-4 border-blue-500 text-blue-900';
+      case 'low':
+        return 'bg-green-50 border-l-4 border-green-500 text-green-900';
       default:
         return 'bg-gray-50 border-l-4 border-gray-500 text-gray-900';
     }
   };
 
-  const getSeverityBadgeColor = (severity: string): string => {
+  const getSeverityStyle = (severity: string) => {
+    const baseClasses = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full border';
+    
     switch (severity.toLowerCase()) {
       case 'critical':
-        return 'bg-red-100 text-red-800 border border-red-200';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#dc2626', color: 'white', borderColor: '#fca5a5' }
+        };
+      case 'major':
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#ea580c', color: 'white', borderColor: '#fed7aa' }
+        };
       case 'warning':
-        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#d97706', color: 'white', borderColor: '#fde68a' }
+        };
       case 'info':
-        return 'bg-blue-100 text-blue-800 border border-blue-200';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#2563eb', color: 'white', borderColor: '#bfdbfe' }
+        };
+      case 'low':
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#16a34a', color: 'white', borderColor: '#bbf7d0' }
+        };
       default:
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
+        return {
+          className: `${baseClasses} bg-gray-100 text-gray-800 border-gray-200`,
+          style: {}
+        };
     }
   };
 
-  const getStatusBadgeColor = (status: string): string => {
+  const getStatusStyle = (status: string) => {
+    const baseClasses = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full border';
+    
     switch (status.toLowerCase()) {
       case 'open':
-        return 'bg-red-100 text-red-800 border border-red-200';
+        return {
+          className: `${baseClasses} bg-gray-100 text-gray-800 border-gray-200`,
+          style: {}
+        };
       case 'acknowledged':
-        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#d97706', color: 'white', borderColor: '#fde68a' }
+        };
       case 'resolved':
-        return 'bg-green-100 text-green-800 border border-green-200';
+        return {
+          className: baseClasses,
+          style: { backgroundColor: '#16a34a', color: 'white', borderColor: '#bbf7d0' }
+        };
       default:
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
+        return {
+          className: `${baseClasses} bg-gray-100 text-gray-800 border-gray-200`,
+          style: {}
+        };
     }
   };
 
@@ -149,9 +235,41 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Notification */}
+      {notification && (
+        <div className={`rounded-md p-4 ${notification.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+          <div className="flex">
+            <div className="flex-shrink-0">
+              {notification.type === 'success' ? (
+                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+            <div className="ml-3">
+              <p className={`text-sm font-medium ${notification.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                {notification.message}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow border">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Filters</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Filters</h3>
+          <button
+            onClick={clearFilters}
+            className="text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            Clear all filters
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label htmlFor="service-filter" className="block text-sm font-medium text-gray-700 mb-1">
@@ -266,14 +384,36 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
                         {incident.environment}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSeverityBadgeColor(incident.severity)}`}>
-                          {incident.severity}
-                        </span>
+                        {(() => {
+                          const severityStyle = getSeverityStyle(incident.severity);
+                          return (
+                            <span className={severityStyle.className} style={severityStyle.style}>
+                              {incident.severity}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(incident.status)}`}>
-                          {incident.status}
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          {(() => {
+                            const statusStyle = getStatusStyle(incident.status);
+                            return (
+                              <span className={statusStyle.className} style={statusStyle.style}>
+                                {incident.status}
+                              </span>
+                            );
+                          })()}
+                          <select
+                            value={incident.status}
+                            onChange={(e) => updateIncidentStatus(incident.id, e.target.value as 'open' | 'acknowledged' | 'resolved')}
+                            disabled={updatingStatus.has(incident.id)}
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                          >
+                            <option value="open">Open</option>
+                            <option value="acknowledged">Acknowledged</option>
+                            <option value="resolved">Resolved</option>
+                          </select>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(incident.created_at)}
@@ -281,9 +421,23 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => toggleRowExpansion(incident.id)}
-                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                          className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
                         >
-                          {expandedRows.has(incident.id) ? 'Collapse' : 'Expand'}
+                          {expandedRows.has(incident.id) ? (
+                            <>
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                              Collapse
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                              Expand
+                            </>
+                          )}
                         </button>
                       </td>
                     </tr>
@@ -291,23 +445,43 @@ const IncidentTable: React.FC<IncidentTableProps> = ({ className = '' }) => {
                       <tr>
                         <td colSpan={7} className="px-6 py-4 bg-gray-50">
                           <div className="space-y-4">
-                            {incident.runbook_url && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <h4 className="text-sm font-medium text-gray-900 mb-2">Runbook</h4>
-                                <a
-                                  href={incident.runbook_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline text-sm"
-                                >
-                                  {incident.runbook_url}
-                                </a>
+                                <h4 className="text-sm font-medium text-gray-900 mb-2">Incident Details</h4>
+                                <dl className="text-sm space-y-1">
+                                  <div className="flex">
+                                    <dt className="font-medium text-gray-500 w-20">ID:</dt>
+                                    <dd className="text-gray-900 font-mono text-xs">{incident.id}</dd>
+                                  </div>
+                                  {incident.updated_at && (
+                                    <div className="flex">
+                                      <dt className="font-medium text-gray-500 w-20">Updated:</dt>
+                                      <dd className="text-gray-900">{formatDate(incident.updated_at)}</dd>
+                                    </div>
+                                  )}
+                                </dl>
                               </div>
-                            )}
+                              {incident.runbook_url && (
+                                <div>
+                                  <h4 className="text-sm font-medium text-gray-900 mb-2">Runbook</h4>
+                                  <a
+                                    href={incident.runbook_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center text-blue-600 hover:text-blue-800 underline text-sm"
+                                  >
+                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    Open Runbook
+                                  </a>
+                                </div>
+                              )}
+                            </div>
                             {incident.source_alert && (
                               <div>
                                 <h4 className="text-sm font-medium text-gray-900 mb-2">Alert Payload</h4>
-                                <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
+                                <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto border">
                                   {JSON.stringify(incident.source_alert, null, 2)}
                                 </pre>
                               </div>
